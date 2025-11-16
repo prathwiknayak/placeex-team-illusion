@@ -1,0 +1,53 @@
+@import "tailwindcss";
+
+/* optional brand token */
+@theme {
+  --color-brand: #00ffff;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+/* Light base */
+body {
+  background-color: #f8f9fa; /* light page */
+  color: #111827; /* gray-900 */
+}
+
+/* Dark base (follows OS automatically) */
+@media (prefers-color-scheme: dark) {
+  body {
+    background-color: #020617; /* slate-950 */
+    color: #f1f5f9; /* slate-100 */
+  }
+}
+
+/* Reusable card */
+.card {
+  border-radius: 1rem;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  background: #fff;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.06);
+}
+@media (prefers-color-scheme: dark) {
+  .card {
+    background: #1f2937; /* gray-800 */
+    border-color: rgba(148, 163, 184, 0.35);
+  }
+}
+
+/* Optional scrollbar */
+.thin-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.thin-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(140, 140, 140, 0.6);
+  border-radius: 10px;
+}
+.thin-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}

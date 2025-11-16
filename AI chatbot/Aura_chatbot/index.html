@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PlaceEx Assistant Chatbot</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Configure Tailwind for custom colors and use Inter font (Cyan theme) -->
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              primary: "#06B6D4", // Cyan-500
+              "primary-dark": "#0891B2", // Cyan-600 for hover
+              "secondary-bg": "#F8FAFC", // Very light blue-gray background
+              "chat-bg": "#FFFFFF", // White for the main chat panel
+            },
+            fontFamily: {
+              sans: ["Inter", "sans-serif"],
+            },
+          },
+        },
+      };
+    </script>
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap");
+
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+        background-color: var(--secondary-bg);
+      }
+
+      #chat-container {
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+        max-width: 1024px;
+        margin: 0 auto;
+        background-color: var(--chat-bg);
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1),
+          0 4px 6px -4px rgba(0, 0, 0, 0.1);
+      }
+
+      #messages {
+        flex-grow: 1;
+        overflow-y: auto;
+        padding: 1.5rem 2rem;
+        background-color: var(--secondary-bg);
+      }
+
+      /* Custom scrollbar for aesthetics */
+      #messages::-webkit-scrollbar {
+        width: 8px;
+      }
+      #messages::-webkit-scrollbar-track {
+        background: #e5e7eb;
+      }
+      #messages::-webkit-scrollbar-thumb {
+        background: #9ca3af;
+        border-radius: 4px;
+      }
+      #messages::-webkit-scrollbar-thumb:hover {
+        background: #6b7280;
+      }
+
+      /* Loader specific styles */
+      .loader {
+        border: 4px solid #f3f3f3;
+        border-top: 4px solid #06b6d4; /* Primary color (Cyan) */
+        border-radius: 50%;
+        width: 24px;
+        height: 24px;
+        animation: spin 1s linear infinite;
+      }
+
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+
+      /* Styling for the typing cursor effect */
+      .typing-cursor {
+        display: inline-block;
+        width: 2px;
+        height: 1em;
+        background-color: #374151;
+        animation: blink 1s step-start infinite;
+        vertical-align: middle;
+      }
+
+      @keyframes blink {
+        50% {
+          opacity: 0;
+        }
+      }
+
+      /* Message bubble styles for ChatGPT/Gemini look */
+      .user-bubble {
+        background-color: #cffafe; /* Cyan-100 */
+        color: #1f2937;
+        border-radius: 12px 12px 0 12px;
+        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+      }
+      .bot-bubble {
+        background-color: #ffffff;
+        color: #1f2937;
+        border: 1px solid #e5e7eb;
+        border-radius: 12px 12px 12px 0;
+        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+      }
+    </style>
+  </head>
+  <body class="font-sans">
+    <div id="chat-container">
+      <!-- Header -->
+      <header class="p-4 bg-white border-b border-gray-200 sticky top-0 z-10">
+        <h1
+          class="text-xl font-bold text-center text-gray-800 flex items-center justify-center"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            class="h-6 w-6 mr-2 text-primary"
+            viewBox="0 0 24 24"
+            fill="currentColor"
+          >
+            <path
+              d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"
+            />
+          </svg>
+          PlaceEx Assistant
+        </h1>
+      </header>
+
+      <!-- Message Area -->
+      <main id="messages" class="space-y-6">
+        <!-- Messages will be appended here dynamically -->
+      </main>
+
+      <!-- Input Area (Footer) -->
+      <footer
+        class="p-4 bg-white border-t border-gray-200 shadow-lg sticky bottom-0 z-10"
+      >
+        <div class="max-w-3xl mx-auto">
+          <div class="flex items-center">
+            <input
+              type="text"
+              id="user-input"
+              placeholder="Ask With Your PlaceEx Assistant"
+              class="flex-grow p-4 border border-gray-300 rounded-2xl focus:outline-none focus:ring-2 focus:ring-primary-dark shadow-sm text-base"
+              onkeydown="if(event.key === 'Enter') sendMessage()"
+            />
+            <button
+              id="send-btn"
+              onclick="sendMessage()"
+              class="ml-3 p-4 bg-primary text-white rounded-2xl transition duration-200 hover:bg-primary-dark disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center shadow-md"
+              title="Send Message"
+            >
+              <svg
+                id="send-icon"
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                class="w-6 h-6"
+              >
+                <path
+                  d="M3.478 2.405a.75.75 0 00-.926.94l2.432 7.905H13.5a.75.75 0 010 1.5H4.984l-2.432 7.905a.75.75 0 00.926.94 100.864 100.864 0 0019.006-8.991c.08-.387.08-.772 0-1.157a100.871 100.871 0 00-19.006-8.991z"
+                />
+              </svg>
+              <div id="loader" class="loader hidden"></div>
+            </button>
+          </div>
+        </div>
+      </footer>
+    </div>
+
+    <script type="module">
+      // Global variables for Firebase configuration (required by the canvas environment)
+      const appId =
+        typeof __app_id !== "undefined" ? __app_id : "default-app-id";
+      const firebaseConfig =
+        typeof __firebase_config !== "undefined"
+          ? JSON.parse(__firebase_config)
+          : null;
+      const initialAuthToken =
+        typeof __initial_auth_token !== "undefined"
+          ? __initial_auth_token
+          : null;
+
+      // --- Gemini API Configuration ---
+
+      // CRITICAL: System instruction for diagrams and plain text.
+      const systemPrompt =
+        "Act as a dedicated, hyper-focused Placement and Career Counselor. Your sole purpose is to provide advice, roadmaps, strategies, and answers STRICTLY related to job placements, internships, interview preparation, resume building, and career pathing. ALL RESPONSES MUST BE PROVIDED IN PLAIN TEXT, WITHOUT ANY MARKDOWN CHARACTERS (e.g., *, #, -, or bold/italic markers). Use natural paragraphs and sentences, or indicate points using numbers/letters followed by a period and a space (e.g., '1. Item one.') to maintain structure without formatting. Whenever you provide a multi-step plan, strategy, or **roadmap** based on the latest industry trends, you **MUST** include one contextually relevant visual diagram tag in the response using the format: . The image tag must be placed immediately before the main body of the roadmap text. Use Google Search grounding for accuracy based on the latest industry trends. If the user asks ANY question that is outside the scope of placements, careers, or related roadmaps (e.g., history, science, coding logic, general knowledge, or any non-career-related topic), you MUST respond ONLY with the exact, unembellished phrase: 'I apologize, but I can only provide assistance related to job placements and career roadmaps.' Do not elaborate further or apologize in any other way in this case.";
+
+      let isProcessing = false;
+
+      const messagesContainer = document.getElementById("messages");
+      const userInput = document.getElementById("user-input");
+      const sendBtn = document.getElementById("send-btn");
+      const loader = document.getElementById("loader");
+      const sendIcon = document.getElementById("send-icon");
+
+      /**
+       * Utility function to scroll the chat window to the latest message.
+       */
+      function scrollToBottom() {
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+      }
+
+      /**
+       * Creates and appends a message container (bubble) to the chat.
+       * @param {string} sender - 'user' or 'bot'.
+       * @param {string} [initialText=''] - Text to place immediately (used for user messages).
+       * @returns {Object} An object containing references to the content element and the bubble itself.
+       */
+      function createMessageContainer(sender, initialText = "") {
+        const messageDiv = document.createElement("div");
+        messageDiv.className = `flex ${
+          sender === "user" ? "justify-end" : "justify-start"
+        }`;
+
+        const bubble = document.createElement("div");
+        bubble.className = `max-w-[90%] p-3.5 text-base shadow-sm ${
+          sender === "user" ? "user-bubble" : "bot-bubble"
+        }`;
+
+        const content = document.createElement("p");
+        content.className = "whitespace-pre-wrap"; // Preserve formatting from model (line breaks)
+        content.textContent = initialText;
+
+        bubble.appendChild(content);
+        messageDiv.appendChild(bubble);
+        messagesContainer.appendChild(messageDiv);
+        scrollToBottom();
+
+        return { bubble, content };
+      }
+
+      /**
+       * Simulates typing out the bot's response character by character.
+       * @param {HTMLElement} contentElement - The <p> element to write into.
+       * @param {string} fullText - The complete text response.
+       * @param {Array<Object>} sources - Array of source objects for citations.
+       * @param {HTMLElement} bubbleElement - The containing bubble div for appending sources.
+       */
+      async function simulateTyping(
+        contentElement,
+        fullText,
+        sources,
+        bubbleElement
+      ) {
+        const typingDelay = 20; // milliseconds per character
+        let currentText = "";
+
+        // Add typing cursor for visual engagement
+        const cursor = document.createElement("span");
+        cursor.className = "typing-cursor";
+        contentElement.appendChild(cursor);
+
+        for (let char of fullText) {
+          // If it's a newline character, handle the break
+          if (char === "\n") {
+            currentText += char;
+            contentElement.textContent = currentText; // Update text content
+            contentElement.innerHTML =
+              contentElement.textContent.replace(/\n/g, "<br>") +
+              '<span class="typing-cursor"></span>';
+          } else {
+            currentText += char;
+            contentElement.textContent = currentText;
+          }
+
+          scrollToBottom();
+          await new Promise((resolve) => setTimeout(resolve, typingDelay));
+        }
+
+        // Remove cursor after typing is complete
+        cursor.remove();
+
+        // Once typing is complete, append sources if any
+        if (sources.length > 0) {
+          const sourcesDiv = document.createElement("div");
+          sourcesDiv.className =
+            "mt-4 text-xs text-gray-500 italic border-t pt-2 border-gray-100";
+          sourcesDiv.innerHTML =
+            "Sources: " +
+            sources
+              .map(
+                (s, index) =>
+                  `<a href="${
+                    s.uri
+                  }" target="_blank" class="text-primary-dark hover:underline">${s.title.substring(
+                    0,
+                    40
+                  )}...</a>`
+              )
+              .join(" | ");
+          bubbleElement.appendChild(sourcesDiv);
+        }
+      }
+
+      /**
+       * Shows the loading spinner and disables the input/button.
+       */
+      function showLoading(state) {
+        isProcessing = state;
+        userInput.disabled = state;
+        sendBtn.disabled = state;
+        if (state) {
+          sendIcon.classList.add("hidden");
+          loader.classList.remove("hidden");
+        } else {
+          sendIcon.classList.remove("hidden");
+          loader.classList.add("hidden");
+        }
+      }
+
+      /**
+       * Handles the API call with exponential backoff for retries.
+       */
+      async function fetchWithRetry(payload, attempt = 1) {
+        const maxAttempts = 5;
+        try {
+          const response = await fetch(apiUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+
+          return await response.json();
+        } catch (error) {
+          if (attempt < maxAttempts) {
+            const delay = Math.pow(2, attempt) * 1000;
+            await new Promise((resolve) => setTimeout(resolve, delay));
+            return fetchWithRetry(payload, attempt + 1);
+          } else {
+            console.error(
+              "Max retries reached. Failed to fetch content.",
+              error
+            );
+            throw new Error(
+              "Could not connect to the service. Please try again."
+            );
+          }
+        }
+      }
+
+      /**
+       * Main function to send the user message to the Gemini API.
+       */
+      window.sendMessage = async function () {
+        if (isProcessing) return;
+
+        const query = userInput.value.trim();
+        if (!query) return;
+
+        // 1. Append user message
+        createMessageContainer("user", query);
+        userInput.value = ""; // Clear input field
+        showLoading(true);
+
+        // 2. Prepare the bot's empty message container for typing simulation
+        const { bubble: botBubble, content: botContent } =
+          createMessageContainer("bot");
+
+        // 3. Construct API Payload
+        const payload = {
+          contents: [{ parts: [{ text: query }] }],
+          tools: [{ google_search: {} }],
+          systemInstruction: {
+            parts: [{ text: systemPrompt }],
+          },
+        };
+
+        try {
+          // 4. Call the API
+          const result = await fetchWithRetry(payload);
+
+          // 5. Process the response
+          const candidate = result.candidates?.[0];
+          let botResponseText =
+            "An error occurred while generating the response.";
+          let sources = [];
+
+          if (candidate && candidate.content?.parts?.[0]?.text) {
+            botResponseText = candidate.content.parts[0].text;
+
+            // Extract grounding sources if available
+            const groundingMetadata = candidate.groundingAttributions;
+            if (groundingMetadata && groundingMetadata.groundingAttributions) {
+              sources = groundingMetadata.groundingAttributions
+                .map((attribution) => ({
+                  uri: attribution.web?.uri,
+                  title: attribution.web?.title,
+                }))
+                .filter((source) => source.uri && source.title);
+            }
+          }
+
+          // 6. Simulate typing the bot's response
+          await simulateTyping(botContent, botResponseText, sources, botBubble);
+        } catch (error) {
+          console.error("Chatbot Error:", error);
+          // Overwrite the container content with an error message
+          await simulateTyping(
+            botContent,
+            "I ran into an issue while connecting to my knowledge base. Please try asking again.",
+            [],
+            botBubble
+          );
+        } finally {
+          // 7. Reset state
+          showLoading(false);
+        }
+      };
+
+      /**
+       * Initializes the chat with the first welcome message.
+       */
+      function initializeChat() {
+        const initialMessage =
+          "Hello! I'm your dedicated PlaceEx Assistant. I can generate accurate, industry-relevant roadmaps and placement advice for you. How can I assist you with your career planning today?";
+        const { content: initialContent } = createMessageContainer("bot");
+        // Use simulation for the initial message too for consistency
+        simulateTyping(
+          initialContent,
+          initialMessage,
+          [],
+          initialContent.parentElement
+        );
+        userInput.focus();
+      }
+
+      // Initialize the chat interface
+      initializeChat();
+    </script>
+  </body>
+</html>
